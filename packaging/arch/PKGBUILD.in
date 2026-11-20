@@ -1,0 +1,16 @@
+pkgname=ratcommander
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc="Desktop configurator for the SteelSeries Aerox 9 Wireless"
+arch=('any')
+license=('GPL-3.0-or-later')
+depends=('python>=3.11' 'pyside6>=6.6' 'python-hidapi>=0.14')
+provides=("aerocommand=$pkgver")
+conflicts=('aerocommand')
+replaces=('aerocommand')
+source=('source.tar.gz')
+sha256sums=('@SHA256@')
+package() {
+    cd "$srcdir/RatCommander"
+    sh packaging/install-tree.sh "$pkgdir"
+}

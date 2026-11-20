@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=RatCommander
+Comment=Configure your SteelSeries Aerox 9 Wireless mouse
+Exec=/usr/bin/ratcommander
+Icon=input-mouse
+Terminal=false
+Categories=Settings;HardwareSettings;

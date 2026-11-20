@@ -1,0 +1,4 @@
+# RatCommander dev rule: lets the logged-in desktop user (uaccess) open only the
+# supported side-grid mouse (receiver 1038:1858, wired 1038:185a). No MODE 0666.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1038", ATTRS{idProduct}=="1858|185a", TAG+="uaccess"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="1038", ATTR{idProduct}=="1858|185a", TAG+="uaccess"

@@ -1,0 +1,83 @@
+name: Release packages
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - format: arch
+            image: archlinux:base-devel
+          - format: ubuntu
+            image: ubuntu:26.04
+    container: ${{ matrix.image }}
+    env:
+      QT_QPA_PLATFORM: offscreen
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Install build and test tools
+        shell: bash
+        run: |
+          if [[ "${{ matrix.format }}" == arch ]]; then
+            pacman -Syu --noconfirm --needed git python python-pytest python-pytest-qt desktop-file-utils
+          else
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y git ca-certificates python3 python3-pytest python3-pytestqt python3-pyside6.qttest desktop-file-utils
+          fi
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build and install the native package
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          if [[ "${{ matrix.format }}" == arch ]]; then
+            useradd -m builder
+            install -d -o builder dist
+            runuser -u builder -- git config --global --add safe.directory "$GITHUB_WORKSPACE"
+            runuser -u builder -- packaging/build-release.sh arch dist
+            pacman -U --noconfirm dist/*.pkg.tar.zst
+          else
+            packaging/build-release.sh ubuntu dist
+            apt-get install -y ./dist/*.deb
+          fi
+      - name: Test the installed application
+        run: |
+          ratcommander --help
+          aerocommand --help
+          desktop-file-validate /usr/share/applications/ratcommander.desktop
+          export PYTHONPATH=/usr/share/ratcommander
+          python3 -c 'from aerocommand.hid_backend import HidBackend; HidBackend()'
+          python3 -m pytest -q tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ratcommander-${{ matrix.format }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ratcommander-*
+          path: dist
+          merge-multiple: true
+      - name: Attach verified packages to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          gh release upload "$TAG" dist/*.pkg.tar.zst dist/*.deb --repo "$GITHUB_REPOSITORY" --clobber
